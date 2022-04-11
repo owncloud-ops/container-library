@@ -52,6 +52,9 @@ steps:
       api_key:
         from_secret: github_token
       note: CHANGELOG.md
+      files:
+        - dist/*
+        - sha256sum.txt
       overwrite: true
       title: ${DRONE_TAG}
     when:
