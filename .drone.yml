@@ -1,0 +1,111 @@
+---
+kind: pipeline
+type: docker
+name: testing
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+- name: lint
+  image: koalaman/shellcheck-alpine:stable
+  commands:
+  - find overlay/ -name '*.sh' | xargs shellcheck
+
+trigger:
+  ref:
+  - refs/heads/master
+  - refs/tags/**
+  - refs/pull/**
+
+
+---
+kind: pipeline
+name: build-package
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+  - name: package
+    image: owncloudci/alpine
+    commands:
+      - mkdir dist/
+      - tar -C ./overlay -zcvf dist/container-library.tar.gz .
+
+  - name: checksum
+    image: owncloudci/alpine
+    commands:
+      - cd dist/ && sha256sum * > ../sha256sum.txt
+
+  - name: changelog-generate
+    image: thegeeklab/git-chglog
+    commands:
+      - git fetch -tq
+      - git-chglog --no-color --no-emoji -o CHANGELOG.md ${DRONE_TAG:---next-tag unreleased unreleased}
+
+  - name: release
+    image: plugins/github-release
+    settings:
+      api_key:
+        from_secret: github_token
+      note: CHANGELOG.md
+      overwrite: true
+      title: ${DRONE_TAG}
+    when:
+      ref:
+      - refs/tags/**
+
+trigger:
+  ref:
+    - refs/heads/master
+    - refs/pull/**
+    - refs/tags/**
+
+depends_on:
+- testing
+
+---
+kind: pipeline
+name: notifications
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+- name: pushrm
+  image: chko/docker-pushrm:1
+  environment:
+    DOCKER_PASS:
+      from_secret: docker_password
+    DOCKER_USER:
+      from_secret: docker_username
+    PUSHRM_FILE: README.md
+    PUSHRM_TARGET: owncloudops/${DRONE_REPO_NAME}
+
+- name: notify
+  image: plugins/slack
+  settings:
+    channel:
+      from_secret: slack_channel
+    webhook:
+      from_secret: slack_webhook_private
+  when:
+    status:
+    - failure
+
+trigger:
+  ref:
+  - refs/heads/master
+  - refs/tags/**
+  status:
+  - success
+  - failure
+
+depends_on:
+- build-package
+
+...
