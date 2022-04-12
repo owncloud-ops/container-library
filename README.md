@@ -6,4 +6,4 @@ Basic utilities script library to use in container images.
 
 ## License
 
-This project is licensed under the Apache 2.0 License - see the [LICENSE](https://github.com/owncloud-ops/container-library/blob/master/LICENSE) file for details.
+This project is licensed under the Apache 2.0 License - see the [LICENSE](https://github.com/owncloud-ops/container-library/blob/main/LICENSE) file for details.
