@@ -8,17 +8,16 @@ platform:
   arch: amd64
 
 steps:
-- name: lint
-  image: koalaman/shellcheck-alpine:stable
-  commands:
-  - find overlay/ -name '*.sh' | xargs shellcheck
+  - name: lint
+    image: docker.io/koalaman/shellcheck-alpine:stable
+    commands:
+      - find overlay/ -name '*.sh' | xargs shellcheck
 
 trigger:
   ref:
-  - refs/heads/main
-  - refs/tags/**
-  - refs/pull/**
-
+    - refs/heads/main
+    - refs/tags/**
+    - refs/pull/**
 
 ---
 kind: pipeline
@@ -30,18 +29,18 @@ platform:
 
 steps:
   - name: package
-    image: owncloudci/alpine
+    image: docker.io/owncloudci/alpine
     commands:
       - mkdir dist/
       - tar -C ./overlay -zcvf dist/container-library.tar.gz .
 
   - name: checksum
-    image: owncloudci/alpine
+    image: docker.io/owncloudci/alpine
     commands:
       - cd dist/ && sha256sum * > ../sha256sum.txt
 
   - name: changelog-generate
-    image: thegeeklab/git-chglog
+    image: quay.io/thegeeklab/git-chglog
     commands:
       - git fetch -tq
       - git-chglog --no-color --no-emoji -o CHANGELOG.md ${DRONE_TAG:---next-tag unreleased unreleased}
@@ -51,15 +50,15 @@ steps:
     settings:
       api_key:
         from_secret: github_token
-      note: CHANGELOG.md
       files:
         - dist/*
         - sha256sum.txt
+      note: CHANGELOG.md
       overwrite: true
       title: ${DRONE_TAG}
     when:
       ref:
-      - refs/tags/**
+        - refs/tags/**
 
 trigger:
   ref:
@@ -68,7 +67,7 @@ trigger:
     - refs/tags/**
 
 depends_on:
-- testing
+  - testing
 
 ---
 kind: pipeline
@@ -79,26 +78,26 @@ platform:
   arch: amd64
 
 steps:
-- name: notify
-  image: plugins/slack
-  settings:
-    channel:
-      from_secret: slack_channel
-    webhook:
-      from_secret: slack_webhook_private
-  when:
-    status:
-    - failure
+  - name: notify
+    image: plugins/slack
+    settings:
+      channel:
+        from_secret: slack_channel
+      webhook:
+        from_secret: slack_webhook_private
+    when:
+      status:
+        - failure
 
 trigger:
   ref:
-  - refs/heads/main
-  - refs/tags/**
+    - refs/heads/main
+    - refs/tags/**
   status:
-  - success
-  - failure
+    - success
+    - failure
 
 depends_on:
-- build-package
+  - build-package
 
 ...
